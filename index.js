@@ -8,7 +8,6 @@ const crypto = require("crypto");
 const { promisify } = require("util");
 const randomBytes = promisify(crypto.randomBytes);
 const { MongoClient } = require("mongodb");
-
 require("dotenv").config();
 
 const client = new MongoClient(process.env.MONGO_URI);
@@ -63,7 +62,22 @@ app.get("/upload", async (req, res) => {
   const url = await generateUploadURL();
   res.send(url);
 });
-
+app.get('/logs', async (req, res) => {
+  try {
+    let data = []
+    await client.connect()
+    const database = client.db("pdfc-logs");
+    const compressions = database.collection("compressions");
+    const query = {name: req.body.name}
+    let cursor = compressions.find()
+    await cursor.forEach(doc => data.push(doc))
+    // console.log(result) 
+    res.send(data)
+  }
+  catch (e) {
+    console.log(e)
+  }
+})
 app.post("/check", async (req, res) => {
    try {
     await client.connect()
