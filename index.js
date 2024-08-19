@@ -1,5 +1,6 @@
 const express = require("express");
 const multer = require("multer");
+const multerS3 = require('multer-s3')
 const app = express();
 const axios = require('axios').default;
 // const {generateUploadURL} = require('./apicall')
@@ -33,13 +34,36 @@ async function generateUploadURL() {
     Expires: 60,
   };
 
+
   const uploadURL = await s3.getSignedUrlPromise("putObject", params);
   return { url: uploadURL, key: imageName };
 }
 app.use(express.json());
-app.use(express.urlencoded());
+app.use(express.urlencoded({extended: true}));
 var cors = require("cors");
 app.use(cors());
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, 'uploads/');
+//   },
+//   filename: (req, file, cb) => {
+//     cb(null, Date.now() + '-' + file.originalname);
+//   }
+// });
+// const upload = multer({storage: storage})
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: 'student-pfps-dino',
+    metadata: function (req, file, cb) {
+      cb(null, {fieldName: file.fieldname});
+    },
+    key: function (req, file, cb) {
+      cb(null, Date.now().toString() + ".jpeg")
+    }
+  })
+})
+
 // Middleware to log the entire request object
 app.use((req, res, next) => {
   // console.log(req)
@@ -116,6 +140,54 @@ app.get("/addlog", async (req, res) => {
   }
   res.send("added record");
 });
+app.get('/students', upload.any(),async (req, res) => {
+  try {
+    let data = []
+    await client.connect()
+    const database = client.db("student-form");
+    const compressions = database.collection("students");
+    const query = {name: req.body.name}
+    let cursor = compressions.find()
+    await cursor.forEach(doc => data.push(doc))
+    // console.log(result) 
+    res.send(data)
+  }
+  catch (e) {
+    console.log(e)
+  }
+  
+})
+app.post('/student', upload.any() , async (req, res) => {
+  const data = req.body
+  // console.log(req.files[0].location)
+  data["pfp"] = req.files[0].location
+  console.log(data)
+  await client.connect()
+  const db = client.db('student-form')
+  const collection = db.collection('students')
+  const upload = await collection.insertOne(data)
+  console.log(upload)
+// TODO parse skills secion into an array
+// TODO figure out how to store image
+
+  res.send("console chudu").status(201)
+})
+
+app.get('/unique', async (req, res) => {
+  await client.connect()
+  const db = client.db('student-form')
+  const collection = db.collection('students')
+  console.log(req.body.studentID)
+  const cursor = await collection.find({"studentID" : req.body.studentID.toString()})
+  let data = []
+  await cursor.forEach(doc => data.push(doc))
+  console.log(data)
+  console.log(data.length == 0)
+  res.send(data.length == 0).status(201)
+
+} )
+
+
 app.post("/", (req, res) => {
   res.send("POST request received. check console");
 });
