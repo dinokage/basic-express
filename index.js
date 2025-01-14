@@ -15,6 +15,7 @@ const client = new MongoClient(process.env.MONGO_URI);
 
 const region = "ap-south-1";
 const bucketName = "dinokagepdftest";
+const gail_bucket = "gail-versioning-test"
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
@@ -34,9 +35,21 @@ async function generateUploadURL() {
     Expires: 60,
   };
 
-
   const uploadURL = await s3.getSignedUrlPromise("putObject", params);
   return { url: uploadURL, key: imageName };
+
+async function generateGailUploadURL() {
+  const rawBytes = await randomBytes(16)  
+  const fileName = rawBytes.toString("hex") + ".pdf";
+
+  const params = {
+    Bucket: gail_bucket,
+    Key: fileName,
+    Expires: 60,
+  };
+
+  const uploadURL = await s3.getSignedUrlPromise("putObject", params);
+  return { url: uploadURL, key: fileName };
 }
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
@@ -84,6 +97,10 @@ app.get("/", (req, res) => {
 });
 app.get("/upload", async (req, res) => {
   const url = await generateUploadURL();
+  res.send(url);
+});
+app.get("/gail-upload", async (req, res) => {
+  const url = await generateGailUploadURL();
   res.send(url);
 });
 app.get('/logs', async (req, res) => {
