@@ -38,6 +38,8 @@ async function generateUploadURL() {
   const uploadURL = await s3.getSignedUrlPromise("putObject", params);
   return { url: uploadURL, key: imageName };
 
+}
+
 async function generateGailUploadURL() {
   const rawBytes = await randomBytes(16)  
   const fileName = rawBytes.toString("hex") + ".pdf";
